@@ -8,8 +8,8 @@ except ImportError:
   from urllib.parse import urlparse
 
 # Change these variables to your script locations
-# As for what these scripts should do, I recommend calling something like aplay or mplay to play the desired sound. 
-# I also use SSH in these scripts to play aounds on several raspis throughout the house. 
+# As for what these scripts should do, I recommend calling something like aplay or mplay to play the desired sound.
+# I also use SSH in these scripts to play aounds on several raspis throughout the house.
 # I use cheap battery-backed bluetooth speakers connected to the headphone jack of a cheap USB sound interface on the raspi
 # USB sound devices are prefered due to the fact that the headphone output of the raspi is quite noisy
 
@@ -21,11 +21,12 @@ SCRIPT_ALARM_TRIGGER = '/home/pi/scripts/alarm.sh'
 SAVESTATE_FILE = '/home/pi/alarmstate.txt'
 
 # Initial state (used only if no saved state exists, don't change this)
-current_state = 'disarmed';
+current_state = 'disarmed'
 
 # Main request handler, see URLs below for the endpoints to use in your home automation system
 class alarmRequestHandler(BaseHTTPRequestHandler):
   def do_GET(self):
+    global current_state
     request_path = urlparse(self.path).path
     print('Request path: ' + request_path)
     responsecode = 200
@@ -33,23 +34,33 @@ class alarmRequestHandler(BaseHTTPRequestHandler):
 
     # Configure your home automation system to send http get request to http://yourserver/arm_away when you leave the house
     if (request_path == '/arm_away'):
+      print('Arming Mode: AWAY')
       alarm_arm_away()
     # Configure your home automation system to send http get request to http://yourserver/disarm_away when you return home
     elif (request_path == '/disarm_away'):
-      alarm_disarm()
+      print('Disarming Away')
+      alarm_disarm_away()
     # Configure your home automation system to send http get request to http://yourserver/arm_home when you arm the system while staying at home
     elif (request_path == '/arm_home'):
+      print('Arming Mode: HOME')
       alarm_arm_home()
     # Configure your home automation system to send http get request to http://yourserver/disarm_home when you disarm the system while staying at home
     elif (request_path == '/disarm_home'):
-      alarm_home()
+      print('Disarming Home')
+      alarm_disarm_home()
     # Configure your home automation system to send http get request to http://yourserver/trigger_away if your motion sensors detect movement
     elif (request_path == '/trigger_away'):
+      print('Trigger Away called.')
+      print('Current state: ' + current_state)
       if (current_state == 'armed_away' or current_state == 'armed_home'):
+        print('===ALARM!===')
         alarm_trigger()
     # Configure your home automation system to send http get request to http://yourserver/trigger_home if your glass or door sensors are triggered
     elif (request_path == '/trigger_home'):
+      print('Trigger Home called.')
+      print('Current state: ' + current_state)
       if (current_state == 'armed_home'):
+        print('===ALARM!===')
         alarm_trigger()
     else:
       responsecode = 305
@@ -64,7 +75,8 @@ class alarmRequestHandler(BaseHTTPRequestHandler):
 
 # Persists current alarm state (armed, disarmed, etc)
 def savestate(state):
-  current_state = state;
+  global current_state
+  current_state = state
   file = open(SAVESTATE_FILE, 'w')
   file.write(state)
   file.close()
@@ -80,42 +92,43 @@ def loadstate():
     pass
   return state
 
-# Call script for arming as you leave the house. 
+# Call script for arming as you leave the house.
 # On my system this plays a loud arming announcement throughout the house.
 def alarm_arm_away():
-  os.system(SCRIPT_ARM_AWAY)  
   savestate('armed_away')
+  os.system(SCRIPT_ARM_AWAY)
   return
 
-# Call script for drming while at home. 
+# Call script for drming while at home.
 # On my system this plays a more quiet arming sound throughout the house.
 def alarm_arm_home():
-  os.system(SCRIPT_ARM_HOME)
   savestate('armed_home')
+  os.system(SCRIPT_ARM_HOME)
   return
 
-# Call script for disarming as come back home. 
+# Call script for disarming as come back home.
 # On my system this plays a loud disarming announcement throughout the house.
 def alarm_disarm_away():
-  os.system(SCRIPT_DISARM_AWAY)
   savestate('disarmed')
+  os.system(SCRIPT_DISARM_AWAY)
   return
 
-# Call script for disarming while at home. 
+# Call script for disarming while at home.
 # On my system this plays a more quiet disarming sound throughout the house.
 def alarm_disarm_home():
-  os.system(SCRIPT_DISARM_HOME)
   savestate('disarmed')
+  os.system(SCRIPT_DISARM_HOME)
   return
 
-# Call script for actions to be performed when an alarm is triggered. 
+# Call script for actions to be performed when an alarm is triggered.
 # On my system this plays a 3 minute long alarm klaxon sound throughout the house.
 def alarm_trigger():
-  os.system(SCRIPT_ALARM_TRIGGER)
   savestate('alarm')
+  os.system(SCRIPT_ALARM_TRIGGER)
   return
 
 def run():
+  global current_state
   current_state = loadstate()
   if (current_state == ''):
     savestate('disarmed')
